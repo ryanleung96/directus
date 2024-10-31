@@ -198,7 +198,7 @@ export const appRecommendedPermissions: Partial<Permission>[] = [
 	},
 ];
 
-export const editablePermissionActions = ['create', 'read', 'update', 'delete', 'share'] as const;
+export const editablePermissionActions = ['create', 'read', 'update', 'delete', 'share', 'review', 'approve'] as const;
 export type EditablePermissionsAction = (typeof editablePermissionActions)[number];
 
 export const disabledActions: Record<string, EditablePermissionsAction[]> = {

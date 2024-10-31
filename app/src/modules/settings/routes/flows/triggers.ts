@@ -79,6 +79,8 @@ export function getTriggers() {
 									'items.create',
 									'items.update',
 									'items.delete',
+									'items.request_review',
+									'items.approve_or_reject_review',
 									'items.promote',
 									'items.sort',
 									{ divider: true },
@@ -102,7 +104,7 @@ export function getTriggers() {
 							width: 'full' as Width,
 							readonly:
 								!scope ||
-								['items.create', 'items.update', 'items.delete', 'items.promote'].every(
+								['items.create', 'items.update', 'items.delete', 'items.request_review', 'items.approve_or_reject_review', 'items.promote'].every(
 									(t) => scope?.includes(t) === false,
 								),
 							options: {

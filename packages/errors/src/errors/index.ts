@@ -25,6 +25,7 @@ export { TokenExpiredError } from './token-expired.js';
 export { UnexpectedResponseError } from './unexpected-response.js';
 export { UnprocessableContentError } from './unprocessable-content.js';
 export { UnsupportedMediaTypeError } from './unsupported-media-type.js';
+export { UnpromoteableVersionError } from './unpromoteable-version.js';
 export { UserSuspendedError } from './user-suspended.js';
 export { ValueOutOfRangeError } from './value-out-of-range.js';
 export { ValueTooLongError } from './value-too-long.js';

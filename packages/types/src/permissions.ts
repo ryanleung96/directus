@@ -19,6 +19,8 @@ export type ItemPermissions = {
 	update: { access: boolean; presets?: Permission['presets']; fields?: Permission['fields'] };
 	delete: { access: boolean };
 	share: { access: boolean };
+	review: { access: boolean }; // Able to request for review
+	approve: { access: boolean }; // Able to approve a review
 };
 
 export type CollectionPermissions = {

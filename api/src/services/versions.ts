@@ -1,5 +1,5 @@
 import { Action } from '@directus/constants';
-import { ForbiddenError, InvalidPayloadError, UnprocessableContentError } from '@directus/errors';
+import { ForbiddenError, InvalidPayloadError, UnprocessableContentError, UnpromoteableVersionError } from '@directus/errors';
 import type { ContentVersion, Filter, Item, PrimaryKey, Query } from '@directus/types';
 import Joi from 'joi';
 import { assign, pick } from 'lodash-es';
@@ -13,6 +13,7 @@ import { ActivityService } from './activity.js';
 import { ItemsService } from './items.js';
 import { PayloadService } from './payload.js';
 import { RevisionsService } from './revisions.js';
+import { aw } from 'vitest/dist/chunks/reporters.DAfKSDh5.js';
 
 export class VersionsService extends ItemsService {
 	constructor(options: AbstractServiceOptions) {
@@ -288,8 +289,122 @@ export class VersionsService extends ItemsService {
 		return finalVersionDelta;
 	}
 
+
+	async requestReview(key: PrimaryKey) {
+		const { id, name, collection, item } = (await this.readOne(key)) as ContentVersion;
+
+		if (this.accountability) {
+			// Check if the accountability has permission to promote versions
+			await validateAccess(
+				{
+					accountability: this.accountability,
+					action: 'review',
+					collection,
+					primaryKeys: [item],
+				},
+				{
+					schema: this.schema,
+					knex: this.knex,
+				}
+			);
+		}
+
+		const versionRecordId = await this.updateOne(id, { review_required: true });
+
+		emitter.emitAction(
+			['items.request_review', `${collection}.items.request_review`], // new hook
+			{
+				payload: {
+					id: versionRecordId,
+					key: key,
+					name: name,
+					item: item,
+				},
+				collection,
+				item: item,
+			},
+			{
+				database: this.knex,
+				schema: this.schema,
+				accountability: this.accountability,
+			},
+		);
+
+
+		return {
+			id: id,
+			key: key,
+			name: name,
+			item: item,
+			review_requested: true,
+		}
+	}
+
+	async approveOrRejectReview(key: PrimaryKey, approved: boolean, rejectReason?: string) {
+		const { id, collection, item } = (await this.readOne(key)) as ContentVersion;
+
+		if (this.accountability) {
+			// Check if the accountability has permission to promote versions
+			await validateAccess(
+				{
+					accountability: this.accountability,
+					action: 'approve',
+					collection,
+					primaryKeys: [item],
+				},
+				{
+					schema: this.schema,
+					knex: this.knex,
+				}
+			);
+		}
+
+		const payload: Partial<Item> = {
+			review_status: approved ? 'approved' : 'rejected',
+		};
+
+		if (!approved && rejectReason) {
+			payload['reject_reason'] = rejectReason;
+		}
+
+		const updatedVersionId = await this.updateOne(id, payload);
+
+		emitter.emitAction(
+			['items.approve_or_reject_review', `${collection}.items.approve_or_reject_review`],
+			{
+				payload: {
+					id: updatedVersionId,
+					key: key,
+					item: item,
+					approved: approved,
+					reject_reason: rejectReason || null,
+				},
+				collection,
+				item: item,
+			},
+			{
+				database: this.knex,
+				schema: this.schema,
+				accountability: this.accountability,
+			},
+		);
+
+		return {
+			id: id,
+			key: key,
+			item: item,
+			approved: approved,
+		};
+	}
+
 	async promote(version: PrimaryKey, mainHash: string, fields?: string[]) {
-		const { id, collection, item, delta } = (await this.readOne(version)) as ContentVersion;
+		const { id, collection, item, delta, approved } = (await this.readOne(version)) as ContentVersion;
+
+		if (!approved) {
+			throw new UnpromoteableVersionError({
+				reason: `Version "${version}" has not been approved for promotion`,
+			});
+		}
 
 		// will throw an error if the accountability does not have permission to update the item
 		if (this.accountability) {
@@ -304,6 +419,20 @@ export class VersionsService extends ItemsService {
 					schema: this.schema,
 					knex: this.knex,
 				},
+			);
+
+			// After promote, the version entry will be updated to prevent double promotion. So we need to check if the accountability has permission to update the version entry
+			await validateAccess(
+				{
+					accountability: this.accountability,
+					action: 'update',
+					collection: 'directus_versions',
+					primaryKeys: [id]
+				},
+				{
+					schema: this.schema,
+					knex: this.knex,
+				}
 			);
 		}
 
@@ -364,6 +493,9 @@ export class VersionsService extends ItemsService {
 				accountability: this.accountability,
 			},
 		);
+
+		// Here we update the version entry to prevent double promotion
+		await this.updateOne(version, { approved: false });
 
 		return updatedItemKey;
 	}

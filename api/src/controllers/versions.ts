@@ -253,6 +253,50 @@ router.post(
 	respond,
 );
 
+
+router.post(
+	'/:pk/request-review',
+	asyncHandler(async (req, res, next) => {
+		const service = new VersionsService({
+			accountability: req.accountability,
+			schema: req.schema,
+		});
+
+		const result = await service.requestReview(req.params['pk']!);
+
+		res.locals['payload'] = { data: result };
+
+		return next();
+	}),
+	respond,
+)
+
+router.post(
+	'/:pk/approve-review',
+	asyncHandler(async (req, res, next) => {
+
+		if (typeof req.body.approved !== 'boolean') {
+			throw new InvalidPayloadError({ reason: `"approved" field is required` });
+		}
+
+		if (!req.body.approved && !req.body.reason) {
+			throw new InvalidPayloadError({ reason: `"reason" field is required` });
+		}
+
+		const service = new VersionsService({
+			accountability: req.accountability,
+			schema: req.schema,
+		});
+
+		const result = await service.approveOrRejectReview(req.params['pk']!, req.body.approved, req.body.reason);
+
+		res.locals['payload'] = { data: result };
+
+		return next();
+	}),
+	respond,
+);
+
 router.post(
 	'/:pk/promote',
 	asyncHandler(async (req, res, next) => {

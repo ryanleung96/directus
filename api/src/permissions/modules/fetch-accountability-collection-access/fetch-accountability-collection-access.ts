@@ -44,6 +44,8 @@ export async function fetchAccountabilityCollectionAccess(
 				update: { access: 'none' },
 				delete: { access: 'none' },
 				share: { access: 'none' },
+				review: { access: 'none' },
+				approve: { access: 'none' },
 			};
 		}
 

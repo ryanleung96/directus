@@ -34,6 +34,8 @@ test('Returns all permissions for all collections if admin', async () => {
 			update: { access: 'full', fields: ['*'] },
 			delete: { access: 'full', fields: ['*'] },
 			share: { access: 'full', fields: ['*'] },
+			review: { access: 'full', fields: ['*'] },
+			approve: { access: 'full', fields: ['*'] },
 		},
 		'collection-b': {
 			create: { access: 'full', fields: ['*'] },
@@ -41,6 +43,8 @@ test('Returns all permissions for all collections if admin', async () => {
 			update: { access: 'full', fields: ['*'] },
 			delete: { access: 'full', fields: ['*'] },
 			share: { access: 'full', fields: ['*'] },
+			review: { access: 'full', fields: ['*'] },
+			approve: { access: 'full', fields: ['*'] },
 		},
 	});
 });
@@ -62,6 +66,8 @@ test('Returns permissions for collections for accountability if not admin', asyn
 			update: { access: 'none' },
 			delete: { access: 'none' },
 			share: { access: 'none' },
+			review: { access: 'none' },
+			approve: { access: 'none' }
 		},
 		'collection-b': {
 			create: { access: 'none' },
@@ -69,6 +75,8 @@ test('Returns permissions for collections for accountability if not admin', asyn
 			update: { access: 'full', fields: ['field-c'] },
 			delete: { access: 'none' },
 			share: { access: 'none' },
+			review: { access: 'none' },
+			approve: { access: 'none' }
 		},
 	});
 });

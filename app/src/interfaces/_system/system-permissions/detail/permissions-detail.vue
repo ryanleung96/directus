@@ -61,7 +61,7 @@ const tabsValue = computed(() => {
 
 	const tabs = [];
 
-	if (['read', 'update', 'delete', 'share'].includes(action)) {
+	if (['read', 'update', 'delete', 'share', 'review', 'approve'].includes(action)) {
 		tabs.push({
 			text: t('item_permissions'),
 			value: 'permissions',

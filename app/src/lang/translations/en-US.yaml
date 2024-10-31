@@ -1530,6 +1530,7 @@ field_options:
     preview_divider: Preview
     content_versioning_divider: Content Versioning
     enable_versioning: Enable Versioning
+    versioning_note: You must assign the "Review" & "Approve" permission to roles for version review flow.
   directus_files:
     title: A unique title...
     description: An optional description...

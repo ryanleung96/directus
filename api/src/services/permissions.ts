@@ -86,6 +86,8 @@ export class PermissionsService extends ItemsService {
 				update: { access: true },
 				delete: { access: true },
 				share: { access: true },
+				review: { access: true },
+				approve: { access: true },
 			};
 		}
 
@@ -93,6 +95,8 @@ export class PermissionsService extends ItemsService {
 			update: { access: false },
 			delete: { access: false },
 			share: { access: false },
+			review: { access: false },
+			approve: { access: false },
 		};
 
 		let updateAction: 'update' | 'create' = 'update';

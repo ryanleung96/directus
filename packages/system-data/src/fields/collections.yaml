@@ -128,6 +128,7 @@ fields:
     width: full
 
   - field: versioning
+    note: $t:field_options.directus_collections.versioning_note
     interface: boolean
     special:
       - cast-boolean
