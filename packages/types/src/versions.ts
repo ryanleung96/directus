@@ -6,6 +6,7 @@ export type ContentVersion = {
 	item: string;
 	hash: string;
 	review_requested: boolean;
+	reviewed: boolean;
 	approved: boolean;
 	reject_reason: string | null;
 	date_created: string;

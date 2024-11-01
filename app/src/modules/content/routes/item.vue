@@ -15,7 +15,7 @@ import RevisionsDrawerDetail from '@/views/private/components/revisions-drawer-d
 import SaveOptions from '@/views/private/components/save-options.vue';
 import SharesSidebarDetail from '@/views/private/components/shares-sidebar-detail.vue';
 import { useCollection } from '@directus/composables';
-import type { PrimaryKey } from '@directus/types';
+import type { ContentVersion, PrimaryKey } from '@directus/types';
 import { useHead } from '@unhead/vue';
 import { computed, onBeforeUnmount, ref, toRefs, unref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -24,6 +24,7 @@ import LivePreview from '../components/live-preview.vue';
 import ContentNavigation from '../components/navigation.vue';
 import VersionMenu from '../components/version-menu.vue';
 import ContentNotFound from './not-found.vue';
+import { aw } from 'vitest/dist/chunks/reporters.DAfKSDh5.js';
 
 interface Props {
 	collection: string;
@@ -60,6 +61,8 @@ const {
 	deleteVersion,
 	saveVersionLoading,
 	saveVersion,
+	getVersions,
+	requestReview
 } = useVersions(collection, isSingleton, primaryKey);
 
 const {
@@ -172,16 +175,45 @@ const isSavable = computed(() => {
 	return hasEdits.value;
 });
 
+const isReviewable = ref(true);
+
+watch([saveAllowed, currentVersion], () => {
+	if (saveAllowed.value === false && currentVersion.value === null) {
+		isReviewable.value = false;
+		return;
+	}
+
+	if (currentVersion.value) {
+		if (currentVersion.value.review_requested === true) {
+			isReviewable.value = false;
+			return;
+		}
+
+		if (currentVersion.value.reviewed === true) {
+			isReviewable.value = false;
+			return;
+		}
+	}
+
+	isReviewable.value = true;
+});
+
 const { updateAllowed: updateVersionsAllowed } = useItemPermissions(
 	'directus_versions',
 	computed(() => currentVersion.value?.id ?? null),
 	computed(() => !currentVersion.value),
 );
 
+
 const isFormDisabled = computed(() => {
 	if (isNew.value) return false;
+
+	if (currentVersion.value !== null) {
+		if (currentVersion.value.review_requested === true) return true;
+		if (updateVersionsAllowed.value) return false;
+	}
+
 	if (updateAllowed.value) return false;
-	if (currentVersion.value !== null && updateVersionsAllowed.value) return false;
 	return true;
 });
 
@@ -417,6 +449,26 @@ async function saveAsCopyAndNavigate() {
 	}
 }
 
+async function submitVersionForReview() {
+	try {
+		await requestReview();
+		await getVersions();
+		// update the notice message
+
+		versioningNotice.value = {
+			show: true,
+			type: 'info',
+			message: 'This version is pending for review. You will not be able to update the content until it is reviewed.',
+		};
+
+		isReviewable.value = false;
+
+		refresh();
+	} catch {
+		// Save shows unexpected error dialog
+	}
+}
+
 async function deleteAndQuit() {
 	try {
 		await remove();
@@ -460,6 +512,61 @@ function revert(values: Record<string, any>) {
 		...edits.value,
 		...values,
 	};
+}
+
+interface VersioningNoticeProps {
+	show: boolean,
+	type: string,
+	message: string,
+}
+
+const versioningNotice = ref<VersioningNoticeProps>({
+	show: false,
+	type: 'info',
+	message: '',
+});
+
+watch(currentVersion, (newVersion) => {
+	if (newVersion?.review_requested === false && newVersion?.reviewed === false) {
+		versioningNotice.value = {
+			show: true,
+			type: 'warning',
+			message: 'This is a draft version. You may submit for review or save your changes.',
+		};
+	} else if (newVersion?.review_requested === true) {
+		versioningNotice.value = {
+			show: true,
+			type: 'info',
+			message: 'This version is pending for review. You will not be able to update the content until it is reviewed.',
+		};
+	} else if (newVersion?.reviewed === true && newVersion?.approved === true) {
+		versioningNotice.value = {
+			show: true,
+			type: 'success',
+			message: 'This version has been reviewed and approved. You can now promote the content to the live version.',
+		};
+	} else if (newVersion?.reviewed === true && newVersion?.approved === false) {
+		const formatedMessage = "This version has been reviewed and rejected (Reason: " + newVersion.reject_reason + ").  You need to make changes and resubmit for review.";
+
+		versioningNotice.value = {
+			show: true,
+			type: 'danger',
+			message: formatedMessage,
+		};
+	} else {
+		versioningNotice.value = {
+			show: false,
+			type: 'info',
+			message: '',
+		};
+	}
+
+	console.log('version udpated');
+});
+
+async function handleVersionSwitch(newVersion: ContentVersion | null) {
+	await getVersions();
+	currentVersion.value = newVersion;
 }
 </script>
 
@@ -540,7 +647,7 @@ function revert(values: Record<string, any>) {
 				@add="addVersion"
 				@update="updateVersion"
 				@delete="deleteVersion"
-				@switch="currentVersion = $event"
+				@switch="handleVersionSwitch($event)"
 			/>
 		</template>
 
@@ -684,11 +791,31 @@ function revert(values: Record<string, any>) {
 					</v-menu>
 				</template>
 			</v-button>
+
+			<v-button
+				v-if="currentVersion !== null"
+				rounded
+				icon
+				tooltip="Request review"
+				:loading="saveVersionLoading"
+				:disabled="!isReviewable"
+				@click="submitVersionForReview()">
+
+				<v-icon name="preview" />
+
+			</v-button>
+
 		</template>
 
 		<template #navigation>
 			<content-navigation :current-collection="collection" />
 		</template>
+
+		<div v-if="versioningNotice.show" class="versioning-notice">
+			<v-notice :type="versioningNotice.type" >
+				{{ versioningNotice.message }}
+			</v-notice>
+		</div>
 
 		<v-form
 			ref="form"
@@ -776,6 +903,16 @@ function revert(values: Record<string, any>) {
 	@media (min-width: 600px) {
 		padding: var(--content-padding);
 		padding-bottom: var(--content-padding-bottom);
+	}
+}
+
+.versioning-notice {
+	padding: calc(var(--content-padding) * 3) var(--content-padding) var(--content-padding);
+	padding-bottom: 0;
+
+	@media (min-width: 600px) {
+		padding: var(--content-padding);
+		padding-bottom: 0;
 	}
 }
 

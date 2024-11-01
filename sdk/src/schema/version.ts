@@ -12,6 +12,9 @@ export type DirectusVersion<Schema = any> = MergeCoreCollection<
 		collection: DirectusCollection<Schema> | string;
 		item: string;
 		hash: string;
+		review_requested: boolean;
+		approved: boolean;
+		reject_reason: string | null;
 		date_created: 'datetime' | null;
 		date_updated: 'datetime' | null;
 		user_created: DirectusUser<Schema> | string | null;

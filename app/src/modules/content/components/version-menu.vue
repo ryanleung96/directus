@@ -4,9 +4,10 @@ import { useCollectionPermissions } from '@/composables/use-permissions';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { ContentVersion } from '@directus/types';
 import { isNil } from 'lodash';
-import { ref, toRefs, unref } from 'vue';
+import { computed, ref, toRefs, unref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VersionPromoteDrawer from './version-promote-drawer.vue';
+import versionApprovalDrawer from './version-approval-drawer.vue';
 
 interface Props {
 	collection: string;
@@ -32,6 +33,8 @@ const { collection, primaryKey, hasEdits, currentVersion } = toRefs(props);
 
 const isVersionPromoteDrawerOpen = ref(false);
 
+const isVersionApproveDrawerOpen = ref(false);
+
 const {
 	createAllowed: createVersionsAllowed,
 	updateAllowed: updateVersionsAllowed,
@@ -48,6 +51,12 @@ const { renameDialogActive, openRenameDialog, closeRenameDialog, updating, renam
 const { deleting, deleteVersion } = useDelete();
 
 const { deleteDialogActive, onDeleteVersion } = useDeleteDialog();
+
+const isUnderReview = currentVersion?.value?.review_requested || false;
+
+const isReviewed = currentVersion?.value?.reviewed || false;
+
+const isRejected = !currentVersion?.value?.approved || false;
 
 function useSwitchDialog() {
 	const switchDialogActive = ref(false);
@@ -219,6 +228,35 @@ async function onPromoteComplete(deleteOnPromote: boolean) {
 		emit('switch', null);
 	}
 }
+
+async function onReviewComplete(approved: boolean) {
+	isVersionApproveDrawerOpen.value = false;
+
+	emit('switch', null); // switch back to main version
+}
+
+
+// Will need to split the versions into four groups - working, reviewing, approved and rejected
+const workingVersions = computed(() => {
+	return props.versions?.filter((version) =>
+		version.review_requested === false && version.reviewed === false);
+});
+
+const reviewingVersions = computed(() => {
+	return props.versions?.filter((version) =>
+		version.review_requested === true && version.reviewed === false);
+});
+
+const approvedVersions = computed(() => {
+	return props.versions?.filter((version) =>
+		version.reviewed === true && version.approved === true);
+});
+
+const rejectedVersions = computed(() => {
+	return props.versions?.filter((version) =>
+		version.reviewed === true && version.approved === false);
+});
+
 </script>
 
 <template>
@@ -234,20 +272,86 @@ async function onPromoteComplete(deleteOnPromote: boolean) {
 			</template>
 
 			<v-list>
+				<v-divider class="versioning-divider">
+					<v-icon name="chevron_right" />
+					<slot name="title">{{  t('main_version') + " - Published" }}</slot>
+				</v-divider>
+
 				<v-list-item class="version-item" clickable :active="currentVersion === null" @click="switchVersion(null)">
 					{{ t('main_version') }}
 				</v-list-item>
 
-				<v-list-item
-					v-for="versionItem of versions"
-					:key="versionItem.id"
-					class="version-item"
-					clickable
-					:active="versionItem.id === currentVersion?.id"
-					@click="switchVersion(versionItem)"
-				>
-					{{ getVersionDisplayName(versionItem) }}
-				</v-list-item>
+				<div id="versions-working">
+					<v-divider class="versioning-divider">
+						<v-icon name="chevron_right" />
+						<slot name="title">Draft/Working Copy</slot>
+					</v-divider>
+
+					<v-list-item
+						v-for="items of workingVersions"
+						:key="items.id"
+						class="version-item"
+						clickable
+						:active="items.id === currentVersion?.id"
+						@click="switchVersion(items)"
+					>
+						{{ getVersionDisplayName(items) }}
+					</v-list-item>
+				</div>
+
+				<div id="versions-under-review">
+					<v-divider class="versioning-divider">
+						<v-icon name="chevron_right" />
+						<slot name="title">Under Review</slot>
+					</v-divider>
+
+					<v-list-item
+						v-for="items of reviewingVersions"
+						:key="items.id"
+						class="version-item"
+						clickable
+						:active="items.id === currentVersion?.id"
+						@click="switchVersion(items)"
+					>
+						{{ getVersionDisplayName(items) }}
+					</v-list-item>
+				</div>
+
+				<div id="versions-approved">
+					<v-divider class="versioning-divider">
+						<v-icon name="chevron_right" />
+						<slot name="title">Approved</slot>
+					</v-divider>
+
+					<v-list-item
+						v-for="items of approvedVersions"
+						:key="items.id"
+						class="version-item"
+						clickable
+						:active="items.id === currentVersion?.id"
+						@click="switchVersion(items)"
+					>
+						{{ getVersionDisplayName(items) }}
+					</v-list-item>
+				</div>
+
+				<div id="versions-rejected">
+					<v-divider class="versioning-divider">
+						<v-icon name="chevron_right" />
+						<slot name="title">Rejected</slot>
+					</v-divider>
+
+					<v-list-item
+						v-for="items of rejectedVersions"
+						:key="items.id"
+						class="version-item"
+						clickable
+						:active="items.id === currentVersion?.id"
+						@click="switchVersion(items)"
+					>
+						{{ getVersionDisplayName(items) }}
+					</v-list-item>
+				</div>
 
 				<template v-if="createVersionsAllowed">
 					<v-divider />
@@ -260,15 +364,19 @@ async function onPromoteComplete(deleteOnPromote: boolean) {
 				<template v-if="currentVersion !== null">
 					<v-divider />
 
-					<v-list-item v-if="updateAllowed" clickable @click="isVersionPromoteDrawerOpen = true">
+					<v-list-item v-if="updateAllowed && !isReviewed" clickable @click="isVersionApproveDrawerOpen = true">
+						Approve/Reject Version
+					</v-list-item>
+
+					<v-list-item v-if="updateAllowed && !isUnderReview && !isRejected" clickable @click="isVersionPromoteDrawerOpen = true">
 						{{ t('promote_version') }}
 					</v-list-item>
 
-					<v-list-item v-if="updateVersionsAllowed" clickable @click="openRenameDialog">
+					<v-list-item v-if="updateVersionsAllowed && !isUnderReview" clickable @click="openRenameDialog">
 						{{ t('rename_version') }}
 					</v-list-item>
 
-					<v-list-item v-if="deleteVersionsAllowed" class="version-delete" clickable @click="deleteDialogActive = true">
+					<v-list-item v-if="deleteVersionsAllowed && !isUnderReview" class="version-delete" clickable @click="deleteDialogActive = true">
 						{{ t('delete_version') }}
 					</v-list-item>
 				</template>
@@ -282,6 +390,14 @@ async function onPromoteComplete(deleteOnPromote: boolean) {
 			:delete-versions-allowed="deleteVersionsAllowed"
 			@cancel="isVersionPromoteDrawerOpen = false"
 			@promote="onPromoteComplete($event)"
+		/>
+
+		<version-approval-drawer
+			v-if="currentVersion !== null"
+			:active="isVersionApproveDrawerOpen"
+			:current-version="currentVersion"
+			@cancel="isVersionApproveDrawerOpen = false"
+			@reviewdone="onReviewComplete($event)"
 		/>
 
 		<v-dialog v-model="switchDialogActive" @esc="switchDialogActive = false">
@@ -459,5 +575,10 @@ async function onPromoteComplete(deleteOnPromote: boolean) {
 .version-delete {
 	--v-list-item-color: var(--theme--danger);
 	--v-list-item-color-hover: var(--theme--danger);
+}
+
+
+.versioning-divider {
+	--v-divider-label-color: var(--theme--foreground-subdued);
 }
 </style>

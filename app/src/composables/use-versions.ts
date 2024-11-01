@@ -70,6 +70,7 @@ export function useVersions(collection: Ref<string>, isSingleton: Ref<boolean>, 
 		deleteVersion,
 		saveVersionLoading,
 		saveVersion,
+		requestReview
 	};
 
 	async function getVersions() {
@@ -155,6 +156,7 @@ export function useVersions(collection: Ref<string>, isSingleton: Ref<boolean>, 
 
 		try {
 			await api.post(`/versions/${currentVersion.value.id}/save`, unref(edits));
+			await getVersions(); // force to reload version list
 		} catch (error) {
 			unexpectedError(error);
 			throw error;
@@ -162,4 +164,21 @@ export function useVersions(collection: Ref<string>, isSingleton: Ref<boolean>, 
 			saveVersionLoading.value = false;
 		}
 	}
+
+	async function requestReview() {
+		if (!currentVersion.value) return;
+
+		saveVersionLoading.value = true;
+
+		try {
+			await api.post(`/versions/${currentVersion.value.id}/request-review`); // no payload needed
+			await getVersions(); // force to reload version list
+		} catch (error) {
+			unexpectedError(error);
+			throw error;
+		} finally {
+			saveVersionLoading.value = false;
+		}
+	}
+
 }

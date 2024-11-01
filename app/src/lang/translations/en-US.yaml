@@ -168,6 +168,9 @@ create_version: Create Version
 rename_version: Rename Version
 compare_version: Compare Version
 save_version: Save Version
+approve_version_drawer_title: Approve/Reject version {version}
+reject_version_reason_dialog_title: Reject version {version}
+reject_version_reason_dialog_content: Please provide a reason for rejecting this version.
 promote_version: Promote Version
 promote_version_disabled: No Changes
 promote_version_drawer_title: Promote {version} into Main
@@ -1530,7 +1533,9 @@ field_options:
     preview_divider: Preview
     content_versioning_divider: Content Versioning
     enable_versioning: Enable Versioning
-    versioning_note: You must assign the "Review" & "Approve" permission to roles for version review flow.
+    versioning_note: You must assign the "Approve" permission to roles for version review flow.
+    versioning_restricted_note: Users with "Update" permission cannot directly update the main version content.
+    enable_versioning_restrictions: Enable Versioning Restrictions
   directus_files:
     title: A unique title...
     description: An optional description...

@@ -1,4 +1,4 @@
-import { ErrorCode, InvalidPayloadError, isDirectusError } from '@directus/errors';
+import { createError, ErrorCode, InvalidPayloadError, isDirectusError } from '@directus/errors';
 import type { PrimaryKey } from '@directus/types';
 import express from 'express';
 import { assign } from 'lodash-es';
@@ -240,6 +240,10 @@ router.post(
 
 		const version = await service.readOne(req.params['pk']!);
 
+		if (version['review_requested'] === true) {
+			throw new (createError('VERSIONING_FORBIDDEN_ACTION', 'Cannot save a version that has a review requested', 403));
+		}
+
 		const mainItem = await service.getMainItem(version['collection'], version['item']);
 
 		const updatedVersion = await service.save(req.params['pk']!, req.body);
@@ -261,6 +265,12 @@ router.post(
 			accountability: req.accountability,
 			schema: req.schema,
 		});
+
+		const version = await service.readOne(req.params['pk']!);
+
+		if (version['review_requested'] === true) {
+			throw new (createError('VERSIONING_DUPLICATED_REVIEW_REQUEST', 'You cannot request another review on this version as it is under review', 403));
+		}
 
 		const result = await service.requestReview(req.params['pk']!);
 
@@ -287,6 +297,12 @@ router.post(
 			accountability: req.accountability,
 			schema: req.schema,
 		});
+
+		const version = await service.readOne(req.params['pk']!);
+
+		if (version['review_requested'] === false) {
+			throw new (createError('VERSIONING_INVALID_ACTION', 'You cannot approve or reject a version that is not under review', 403));
+		}
 
 		const result = await service.approveOrRejectReview(req.params['pk']!, req.body.approved, req.body.reason);
 

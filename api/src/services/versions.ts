@@ -10,10 +10,9 @@ import { validateAccess } from '../permissions/modules/validate-access/validate-
 import type { AbstractServiceOptions, MutationOptions } from '../types/index.js';
 import { shouldClearCache } from '../utils/should-clear-cache.js';
 import { ActivityService } from './activity.js';
-import { ItemsService } from './items.js';
+import { ItemsService, type QueryOptions } from './items.js';
 import { PayloadService } from './payload.js';
 import { RevisionsService } from './revisions.js';
-import { aw } from 'vitest/dist/chunks/reporters.DAfKSDh5.js';
 
 export class VersionsService extends ItemsService {
 	constructor(options: AbstractServiceOptions) {
@@ -83,6 +82,18 @@ export class VersionsService extends ItemsService {
 				reason: `Version "${data['key']}" already exists for item "${data['item']}" in collection "${data['collection']}"`,
 			});
 		}
+	}
+
+	override async readByQuery(query: Query, opts?: QueryOptions): Promise<Item[]> {
+		const result = await super.readByQuery(query, opts);
+
+		const payloadService = new PayloadService(this.collection, {
+			accountability: this.accountability,
+			knex: this.knex,
+			schema: this.schema,
+		});
+
+		return await payloadService.processValues('read', result);
 	}
 
 	async getMainItem(collection: string, item: PrimaryKey, query?: Query): Promise<Item> {
@@ -177,10 +188,14 @@ export class VersionsService extends ItemsService {
 	}
 
 	override async updateMany(keys: PrimaryKey[], data: Partial<Item>, opts?: MutationOptions): Promise<PrimaryKey[]> {
-		// Only allow updates on "key" and "name" fields
+		// Only allow updates on "key" and "name" fields; also allow updates on versioning control fields (review_requested, approved, reject_reason)
 		const versionUpdateSchema = Joi.object({
 			key: Joi.string(),
 			name: Joi.string().allow(null),
+			review_requested: Joi.boolean().allow(null),
+			reviewed: Joi.boolean().allow(null),
+			approved: Joi.boolean().allow(null),
+			reject_reason: Joi.string().allow(null),
 		});
 
 		const { error } = versionUpdateSchema.validate(data);
@@ -278,7 +293,7 @@ export class VersionsService extends ItemsService {
 			schema: this.schema,
 		});
 
-		await sudoService.updateOne(key, { delta: finalVersionDelta });
+		await sudoService.updateOne(key, { delta: finalVersionDelta, reviewed: false }); // whenever it has an update, it should be marked as unreviewed
 
 		const { cache } = getCache();
 
@@ -298,7 +313,7 @@ export class VersionsService extends ItemsService {
 			await validateAccess(
 				{
 					accountability: this.accountability,
-					action: 'review',
+					action: 'update', // any user has the ability to request a review must have the update permission
 					collection,
 					primaryKeys: [item],
 				},
@@ -309,7 +324,7 @@ export class VersionsService extends ItemsService {
 			);
 		}
 
-		const versionRecordId = await this.updateOne(id, { review_required: true });
+		const versionRecordId = await this.updateOne(id, { review_requested: true, reviewed: false }); // mark this version as unreviewed
 
 		emitter.emitAction(
 			['items.request_review', `${collection}.items.request_review`], // new hook
@@ -360,11 +375,17 @@ export class VersionsService extends ItemsService {
 		}
 
 		const payload: Partial<Item> = {
-			review_status: approved ? 'approved' : 'rejected',
+			review_requested: false,
+			reviewed: true,
+			approved: approved,
 		};
 
 		if (!approved && rejectReason) {
 			payload['reject_reason'] = rejectReason;
+		}
+
+		if (approved) {
+			payload['reject_reason'] = null;
 		}
 
 		const updatedVersionId = await this.updateOne(id, payload);
@@ -376,6 +397,7 @@ export class VersionsService extends ItemsService {
 					id: updatedVersionId,
 					key: key,
 					item: item,
+					reviewed: true,
 					approved: approved,
 					reject_reason: rejectReason || null,
 				},
@@ -495,7 +517,7 @@ export class VersionsService extends ItemsService {
 		);
 
 		// Here we update the version entry to prevent double promotion
-		await this.updateOne(version, { approved: false });
+		await this.updateOne(version, { approved: false, reviewed: false });
 
 		return updatedItemKey;
 	}

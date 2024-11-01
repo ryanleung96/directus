@@ -40,3 +40,17 @@ fields:
   - field: delta
     special:
       - cast-json
+
+  - field: review_requested
+    special:
+      - cast-boolean
+
+  - field: reviewed
+    special:
+      - cast-boolean
+
+  - field: approved
+    special:
+      - cast-boolean
+
+  - field: reject_reason

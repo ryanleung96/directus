@@ -10,5 +10,5 @@ const messageConstructor = (extendsions: UnpromoteableVersionErrorExtensions) =>
 export const UnpromoteableVersionError = createError<UnpromoteableVersionErrorExtensions>(
 	ErrorCode.UnpromoteableVersion,
 	messageConstructor,
-	401,
+	403,
 );
