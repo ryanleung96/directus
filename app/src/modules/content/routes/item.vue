@@ -456,7 +456,6 @@ async function submitVersionForReview() {
 	try {
 		await requestReview();
 		await getVersions();
-		console.log(currentVersion.value);
 		// update the notice message
 
 		versioningNotice.value = {
