@@ -136,6 +136,15 @@ fields:
       label: $t:field_options.directus_collections.enable_versioning
     width: half
 
+  - field: versioning_restrictions
+    note: $t:field_options.directus_collections.versioning_restrictions_note
+    interface: boolean
+    special:
+      - cast-boolean
+    options:
+      label: $t:field_options.directus_collections.enable_versioning_restrictions
+    width: half
+
   - field: archive_divider
     special:
       - alias

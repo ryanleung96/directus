@@ -13,6 +13,7 @@ interface Props {
 	collection: string;
 	primaryKey: string | number;
 	updateAllowed: boolean;
+	approveAllowed: boolean;
 	hasEdits: boolean;
 	currentVersion: ContentVersion | null;
 	versions: ContentVersion[] | null;
@@ -364,7 +365,7 @@ const rejectedVersions = computed(() => {
 				<template v-if="currentVersion !== null">
 					<v-divider />
 
-					<v-list-item v-if="updateAllowed && !isReviewed" clickable @click="isVersionApproveDrawerOpen = true">
+					<v-list-item v-if="approveAllowed && isUnderReview" clickable @click="isVersionApproveDrawerOpen = true">
 						Approve/Reject Version
 					</v-list-item>
 

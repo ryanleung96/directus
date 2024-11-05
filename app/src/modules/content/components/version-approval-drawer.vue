@@ -160,7 +160,7 @@ function useActionDialog() {
 			unexpectedError(error);
 			throw error;
 		} finally {
-			apiLoading.value = true;
+			apiLoading.value = false;
 		}
 	}
 

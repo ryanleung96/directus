@@ -1534,7 +1534,7 @@ field_options:
     content_versioning_divider: Content Versioning
     enable_versioning: Enable Versioning
     versioning_note: You must assign the "Approve" permission to roles for version review flow.
-    versioning_restricted_note: Users with "Update" permission cannot directly update the main version content.
+    versioning_restrictions_note: When enabled, users with "Update" permission cannot directly update the main version content.
     enable_versioning_restrictions: Enable Versioning Restrictions
   directus_files:
     title: A unique title...

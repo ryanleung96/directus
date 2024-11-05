@@ -17,7 +17,7 @@ import SharesSidebarDetail from '@/views/private/components/shares-sidebar-detai
 import { useCollection } from '@directus/composables';
 import type { ContentVersion, PrimaryKey } from '@directus/types';
 import { useHead } from '@unhead/vue';
-import { computed, onBeforeUnmount, ref, toRefs, unref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRefs, unref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import LivePreview from '../components/live-preview.vue';
@@ -48,7 +48,7 @@ const { breadcrumb } = useBreadcrumb();
 
 const revisionsDrawerDetailRef = ref<InstanceType<typeof RevisionsDrawerDetail> | null>(null);
 
-const { info: collectionInfo, defaults, primaryKeyField, isSingleton, accountabilityScope } = useCollection(collection);
+const { info: collectionInfo, defaults, primaryKeyField, isSingleton, accountabilityScope, versioningRestrictions } = useCollection(collection);
 
 const {
 	readVersionsAllowed,
@@ -87,7 +87,7 @@ const {
 
 const {
 	collectionPermissions: { createAllowed, revisionsAllowed },
-	itemPermissions: { updateAllowed, deleteAllowed, saveAllowed, archiveAllowed, shareAllowed, fields },
+	itemPermissions: { updateAllowed, deleteAllowed, saveAllowed, approveAllowed, archiveAllowed, shareAllowed, fields },
 } = permissions;
 
 const { templateData } = useTemplateData(collectionInfo, primaryKey);
@@ -208,6 +208,10 @@ const { updateAllowed: updateVersionsAllowed } = useItemPermissions(
 const isFormDisabled = computed(() => {
 	if (isNew.value) return false;
 
+	// If versioning restrictions are enabled, disable the form when version is main
+	if (currentVersion.value === null && collectionInfo.value?.meta?.versioning_restrictions === true) return true;
+
+	// Editing a version
 	if (currentVersion.value !== null) {
 		if (currentVersion.value.review_requested === true) return true;
 		if (updateVersionsAllowed.value) return false;
@@ -526,8 +530,25 @@ const versioningNotice = ref<VersioningNoticeProps>({
 	message: '',
 });
 
+onMounted(() => {
+    if (currentVersion.value === null && versioningRestrictions.value === true) {
+        versioningNotice.value = {
+            show: true,
+            type: 'warning',
+            message: 'You are not allowed to edit the LIVE version. Please create a new version to make changes.',
+        };
+    }
+});
+
 watch(currentVersion, (newVersion) => {
-	if (newVersion?.review_requested === false && newVersion?.reviewed === false) {
+	if (newVersion === null && versioningRestrictions.value === true) {
+		// main version, lock the form
+		versioningNotice.value = {
+			show: true,
+			type: 'warning',
+			message: 'You are not allowed to edit the LIVE version. Please create a new version to make changes.',
+		};
+	} else if (newVersion?.review_requested === false && newVersion?.reviewed === false) {
 		versioningNotice.value = {
 			show: true,
 			type: 'warning',
@@ -560,8 +581,6 @@ watch(currentVersion, (newVersion) => {
 			message: '',
 		};
 	}
-
-	console.log('version udpated');
 });
 
 async function handleVersionSwitch(newVersion: ContentVersion | null) {
@@ -641,6 +660,7 @@ async function handleVersionSwitch(newVersion: ContentVersion | null) {
 				:collection="collection"
 				:primary-key="internalPrimaryKey"
 				:update-allowed="updateAllowed"
+				:approve-allowed="approveAllowed"
 				:has-edits="hasEdits"
 				:current-version="currentVersion"
 				:versions="versions"

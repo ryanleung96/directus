@@ -9,7 +9,7 @@ export const isActionAllowed = (
 	collection: Collection,
 	isNew: IsNew,
 	fetchedItemPermissions: Ref<ItemPermissions>,
-	action: 'update' | 'delete' | 'share',
+	action: 'update' | 'delete' | 'share' | 'approve',
 ) => {
 	const userStore = useUserStore();
 	const { getPermission } = usePermissionsStore();

@@ -12,6 +12,7 @@ export type UsableCollection = {
 	sortField: ComputedRef<string | null>;
 	isSingleton: ComputedRef<boolean>;
 	accountabilityScope: ComputedRef<'all' | 'activity' | null>;
+	versioningRestrictions: ComputedRef<boolean>;
 };
 
 export function useCollection(collectionKey: string | Ref<string | null>): UsableCollection {
@@ -71,5 +72,11 @@ export function useCollection(collectionKey: string | Ref<string | null>): Usabl
 		return info.value.meta.accountability;
 	});
 
-	return { info, fields, defaults, primaryKeyField, userCreatedField, sortField, isSingleton, accountabilityScope };
+	const versioningRestrictions = computed(() => {
+		if (!info.value) return false;
+		if (!info.value.meta) return false;
+		return info.value.meta.versioning ? info.value.meta.versioning_restrictions : false;
+	})
+
+	return { info, fields, defaults, primaryKeyField, userCreatedField, sortField, isSingleton, accountabilityScope, versioningRestrictions };
 }
