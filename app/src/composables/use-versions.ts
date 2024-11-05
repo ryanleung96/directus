@@ -109,6 +109,11 @@ export function useVersions(collection: Ref<string>, isSingleton: Ref<boolean>, 
 			});
 
 			versions.value = response.data.data;
+
+			if (currentVersion.value) {
+				const updatedVersion = response.data.data.find((version: ContentVersion) => version.key === currentVersion.value?.key);
+				currentVersion.value = updatedVersion ?? null;
+			}
 		} catch (error) {
 			unexpectedError(error);
 		} finally {

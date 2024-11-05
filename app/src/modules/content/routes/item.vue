@@ -24,7 +24,6 @@ import LivePreview from '../components/live-preview.vue';
 import ContentNavigation from '../components/navigation.vue';
 import VersionMenu from '../components/version-menu.vue';
 import ContentNotFound from './not-found.vue';
-import { aw } from 'vitest/dist/chunks/reporters.DAfKSDh5.js';
 
 interface Props {
 	collection: string;
@@ -457,6 +456,7 @@ async function submitVersionForReview() {
 	try {
 		await requestReview();
 		await getVersions();
+		console.log(currentVersion.value);
 		// update the notice message
 
 		versioningNotice.value = {

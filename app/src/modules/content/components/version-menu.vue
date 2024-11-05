@@ -4,7 +4,7 @@ import { useCollectionPermissions } from '@/composables/use-permissions';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { ContentVersion } from '@directus/types';
 import { isNil } from 'lodash';
-import { computed, ref, toRefs, unref } from 'vue';
+import { computed, ref, toRefs, unref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VersionPromoteDrawer from './version-promote-drawer.vue';
 import versionApprovalDrawer from './version-approval-drawer.vue';
